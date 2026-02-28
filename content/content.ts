@@ -1,279 +1,195 @@
-interface GoldPrice {
-  karat: string
-  pricePerGram: number
-}
+// ─── State ───────────────────────────────────────────────────────
+let marketPrice: number | null = null
+let fetched = false
+const BADGE_CLASS = 'gpc-badge'
 
-// Global cache in the content script so we NEVER ask background script repeatedly
-let inMemoryMarketPrice: number | null = null;
-let lastFetchTimestamp = 0;
+// ─── Fetch market price exactly once ─────────────────────────────
+async function fetchMarketPrice(): Promise<number | null> {
+  if (fetched) return marketPrice
+  fetched = true
 
-// Fetch ONLY ONCE per minute from background script
-async function getMarketPrice(): Promise<number | null> {
-  const now = Date.now();
-  if (inMemoryMarketPrice && (now - lastFetchTimestamp < 60000)) {
-    return inMemoryMarketPrice;
-  }
-
-  console.log('[Gold Price] Requesting price from background...');
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'getGoldPrice' });
-    if (response && response.success && response.data) {
-      inMemoryMarketPrice = response.data.pricePerGram;
-      lastFetchTimestamp = now;
-      console.log('[Gold Price] Received price:', inMemoryMarketPrice);
-      return inMemoryMarketPrice;
+    const res = await chrome.runtime.sendMessage({ type: 'GET_GOLD_PRICE' })
+    if (res?.ok) {
+      marketPrice = res.pricePerGram
+      console.log('[GPC] Market gold price: ₹' + marketPrice + '/g')
+    } else {
+      console.error('[GPC] Background error:', res?.error)
     }
-  } catch (error) {
-    console.error('[Gold Price] Error communicating with background:', error);
+  } catch (e) {
+    console.error('[GPC] Failed to contact background:', e)
   }
-  return inMemoryMarketPrice;
+  return marketPrice
 }
 
-// Extracts price (e.g., "₹ 24,999" -> 24999)
-function extractPriceFromText(text: string): number | null {
-  const match = text.replace(/[₹,Rs.]/gi, '').trim();
-  const price = parseFloat(match);
-  return price > 0 ? price : null;
+// ─── Extract price from text like "₹24,999" or "Rs. 1,299" ─────
+function parsePrice(text: string): number | null {
+  // Find the first price-like pattern: ₹ or Rs followed by digits
+  const m = text.match(/(?:₹|Rs\.?\s*)([\d,]+(?:\.\d+)?)/)
+  if (!m) return null
+  const n = parseFloat(m[1].replace(/,/g, ''))
+  return n > 0 ? n : null
 }
 
-// Extracts weight (e.g., "10.5g" -> 10.5)
-function extractWeightFromText(text: string): number | null {
+// ─── Extract gold weight from text ──────────────────────────────
+// Must appear near the word "gold" or "weight" to avoid false matches
+function parseWeight(text: string): number | null {
   const patterns = [
-    /(\d+(?:\.\d+)?)\s*grams?\s*(?:of\s*)?gold/i,
-    /(\d+(?:\.\d+)?)\s*g\s*(?:of\s*)?gold/i,
-    /gold\s*weight\s*:?\s*(\d+(?:\.\d+)?)\s*g/i,
-    /net\s*weight\s*:?\s*(\d+(?:\.\d+)?)\s*g/i,
-    /weight\s*:?\s*(\d+(?:\.\d+)?)\s*g/i,
-    /(\d+(?:\.\d+)?)\s*g\b/i
-  ];
+    /(\d+(?:\.\d+)?)\s*(?:grams?|gms?)\s+(?:of\s+)?gold/i,
+    /gold\s+weight\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:grams?|gms?|g\b)/i,
+    /net\s+weight\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:grams?|gms?|g\b)/i,
+    /weight\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:grams?|gms?|g\b)/i,
+    /(\d+(?:\.\d+)?)\s*(?:grams?|gms?)\s+gold/i,
+    /(\d+(?:\.\d+)?)\s*g\s+(?:of\s+)?gold/i,
+  ]
 
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      const weight = parseFloat(match[1]);
-      if (weight > 0 && weight < 1000) return weight;
+  for (const re of patterns) {
+    const m = text.match(re)
+    if (m) {
+      const w = parseFloat(m[1])
+      if (w > 0.1 && w < 500) return w  // sane range for jewelry
     }
   }
-  return null;
+  return null
 }
 
-function findProductContainers(): Element[] {
-  const host = window.location.hostname;
-  let selectors: string[] = [];
-
-  if (host.includes('myntra.com')) {
-    selectors = [
-      '.product-base',       // Search list
-      '.pdp-main',          // Product detail page
-      '.pdp-details'        // Product detail alternate
-    ];
-  } else if (host.includes('ajio.com')) {
-    selectors = [
-      '.item',              // Search list
-      '.prod-content'       // Product detail page
-    ];
-  } else if (host.includes('flipkart.com')) {
-    selectors = [
-      '[data-id]',          // Search list
-      '[class*="col-12-12"]', // Product detail page generic container
-      '[class*="product"]', // Alternative wrapper
-      '._1AtVbE',           // Old layout list
-      '._2kHMtA',           // Alternate layout list
-      '.slAVV4',            // Grid view item
-      '.cPHDOP'             // Search list alternative
-    ];
-  }
-
-  const containers: Element[] = [];
-  for (const sel of selectors) {
-    document.querySelectorAll(sel).forEach(el => containers.push(el));
-  }
-
-  // Fallback: If no specific containers found, treat the whole body as one container for PDPs
-  if (containers.length === 0) {
-    containers.push(document.body);
-  }
-
-  return [...new Set(containers)];
+// ─── Check if text mentions gold jewelry ────────────────────────
+function isGoldProduct(text: string): boolean {
+  const lower = text.toLowerCase()
+  // Must contain "gold" AND a karat indicator to avoid false positives
+  // OR contain specific karat mentions
+  return (
+    (lower.includes('gold') && /\b(14|18|22|24)\s*k/i.test(lower)) ||
+    (lower.includes('gold') && /\b(585|750|916|999)\b/.test(lower)) ||
+    (/\b(14|18|22|24)\s*k(?:t|arat)?\b/i.test(lower) && lower.includes('gold'))
+  )
 }
 
-function getPriceElement(container: Element): Element | null {
-  const host = window.location.hostname;
-  let selectors: string[] = [];
+// ─── Create the badge element ───────────────────────────────────
+function createBadge(productPrice: number, weight: number, mktPrice: number): HTMLElement {
+  const prodPerGram = productPrice / weight
+  const isBuy = prodPerGram <= mktPrice
+  const color = isBuy ? '#16a34a' : '#dc2626'
+  const label = isBuy ? 'BUY' : 'SKIP'
+  const emoji = isBuy ? '🟢' : '🔴'
+  const diff = Math.abs(prodPerGram - mktPrice)
+  const direction = isBuy ? 'below' : 'above'
 
-  if (host.includes('myntra.com')) {
-    selectors = ['.product-discountedPrice', '.pdp-price', 'strong', '.product-price'];
-  } else if (host.includes('ajio.com')) {
-    selectors = ['.price', '.prod-price', '.price-val'];
-  } else if (host.includes('flipkart.com')) {
-    // Look for anything that has the price symbol and is a direct price container
-    selectors = ['.Nx9bqj', '._30jeq3', '.CEmiEU', '.hl05eU', '[class*="price"]', 'div > div > span:first-child'];
-  }
-
-  for (const sel of selectors) {
-    const el = container.querySelector(sel);
-    if (el) return el;
-  }
-
-  // Fallback: search for elements containing ₹ or Rs
-  const elements = Array.from(container.querySelectorAll('*'));
-  for (const el of elements) {
-    if (el.children.length === 0 && (el.textContent?.includes('₹') || el.textContent?.includes('Rs'))) {
-      return el;
-    }
-  }
-  return null;
-}
-
-function createBadge(productPrice: number, goldWeight: number, marketPrice: number): HTMLElement {
-  const productPricePerGram = productPrice / goldWeight;
-  const isBuy = productPricePerGram <= marketPrice;
-  const emoji = isBuy ? '🟢' : '🔴';
-  const status = isBuy ? 'BUY' : 'SKIP';
-  const color = isBuy ? '#22c55e' : '#ef4444';
-
-  const diff = Math.abs(productPricePerGram - marketPrice);
-  const diffText = isBuy 
-    ? `₹${diff.toFixed(2)}/g below market`
-    : `₹${diff.toFixed(2)}/g above market`;
-
-  const badge = document.createElement('div');
-  badge.className = 'gold-price-extension-badge';
-  // Use aggressive styling to ensure visibility
-  badge.style.cssText = `
-    display: block !important;
-    position: relative !important;
-    width: 100% !important;
-    min-width: 200px !important;
-    margin: 8px 0 !important;
-    padding: 8px 12px !important;
-    background: white !important;
-    border-radius: 6px !important;
-    border: 1px solid #e5e7eb !important;
-    border-left: 5px solid ${color} !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-    z-index: 99999 !important;
-    font-family: system-ui, -apple-system, sans-serif !important;
-    box-sizing: border-box !important;
-  `;
-
-  badge.innerHTML = `
-    <div style="display: flex !important; align-items: center !important; gap: 8px !important; background: transparent !important;">
-      <span style="font-size: 24px !important; line-height: 1 !important; margin: 0 !important;">${emoji}</span>
-      <div style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; line-height: 1.3 !important; text-align: left !important; background: transparent !important;">
-        <span style="font-weight: 800 !important; color: ${color} !important; font-size: 13px !important; margin: 0 !important;">${status}</span>
-        <span style="font-size: 11px !important; color: #4b5563 !important; margin: 0 !important; font-weight: normal !important;">Mkt: ₹${marketPrice.toFixed(0)}/g | Prod: ₹${productPricePerGram.toFixed(0)}/g</span>
-        <span style="font-size: 11px !important; color: ${color} !important; margin: 0 !important; font-weight: 600 !important;">${diffText}</span>
-      </div>
+  const el = document.createElement('div')
+  el.className = BADGE_CLASS
+  el.style.cssText = `
+    display:flex!important;align-items:center!important;gap:8px!important;
+    margin:6px 0!important;padding:6px 10px!important;
+    background:#fff!important;border-radius:6px!important;
+    border-left:4px solid ${color}!important;
+    box-shadow:0 1px 4px rgba(0,0,0,.12)!important;
+    font:12px/1.4 system-ui,sans-serif!important;
+    width:fit-content!important;z-index:99999!important;
+    color:#333!important;
+  `
+  el.innerHTML = `
+    <span style="font-size:18px">${emoji}</span>
+    <div>
+      <b style="color:${color}">${label}</b>
+      <span style="color:#666"> Mkt ₹${mktPrice.toFixed(0)}/g · Prod ₹${prodPerGram.toFixed(0)}/g</span><br>
+      <span style="color:${color};font-weight:600">₹${diff.toFixed(0)}/g ${direction} market</span>
     </div>
-  `;
-
-  return badge;
+  `
+  return el
 }
 
-async function runAnalysis() {
-  const containers = findProductContainers();
-  if (containers.length === 0) {
-    console.log('[Gold Price] No product containers found on this page.');
-    return;
-  }
-
-  const unbadgedContainers = containers.filter(c => !c.querySelector('.gold-price-extension-badge'));
-  if (unbadgedContainers.length === 0) return;
-
-  let processedCount = 0;
-  let marketPrice: number | null = null;
-  let skippedReasons: Record<string, number> = {
-    notGold: 0,
-    noPrice: 0,
-    noWeight: 0
-  };
-
-  for (const container of unbadgedContainers) {
-    const textContext = container.textContent?.toLowerCase() || '';
-    
-    // Only process if it explicitly mentions gold
-    if (!textContext.includes('gold') && !textContext.includes('22k') && !textContext.includes('18k') && !textContext.includes('24k')) {
-      skippedReasons.notGold++;
-      continue;
+// ─── Find price element inside a container ──────────────────────
+function findPriceEl(container: Element): Element | null {
+  // Walk leaf nodes looking for ₹ or Rs pattern
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      return /(?:₹|Rs\.?\s*)\d/.test(node.textContent || '')
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_REJECT
     }
+  })
 
-    const priceEl = getPriceElement(container);
-    if (!priceEl) {
-      skippedReasons.noPrice++;
-      continue;
-    }
+  const first = walker.nextNode()
+  return first?.parentElement || null
+}
 
-    const priceText = priceEl.textContent || '';
-    const price = extractPriceFromText(priceText);
-    if (!price) {
-      skippedReasons.noPrice++;
-      continue;
-    }
+// ─── Main scan ──────────────────────────────────────────────────
+async function scan() {
+  const pageText = document.body.innerText
+  if (!isGoldProduct(pageText)) return  // fast exit: page has no gold
 
-    const weight = extractWeightFromText(textContext);
-    if (!weight) {
-      skippedReasons.noWeight++;
-      continue;
-    }
+  const price = await fetchMarketPrice()
+  if (!price) return
 
-    // We found a valid gold product! Only fetch market price NOW if we haven't already.
-    if (!marketPrice) {
-      marketPrice = await getMarketPrice();
-      if (!marketPrice) {
-        console.warn('[Gold Price] Aborting: Failed to get market price.');
-        return;
+  // Find all leaf-level product containers by looking for price elements
+  // then walking UP to find a reasonable container boundary
+  const priceEls = document.querySelectorAll('*')
+  const processed = new Set<Element>()
+
+  for (const el of priceEls) {
+    // Skip non-leaf, already-processed, or our own badges
+    if (el.children.length > 0) continue
+    if (!el.textContent || !/(?:₹|Rs\.?\s*)\d/.test(el.textContent)) continue
+
+    // Walk up to find the product card boundary
+    let card: Element | null = el
+    for (let i = 0; i < 8 && card; i++) {
+      card = card.parentElement
+      if (!card) break
+      // Stop at a reasonable card boundary
+      const tag = card.tagName.toLowerCase()
+      if (tag === 'li' || tag === 'article') break
+      if (tag === 'a' && card.getAttribute('href')) break
+      if (tag === 'div') {
+        const cls = card.className.toLowerCase()
+        if (/product|card|item|result|listing/.test(cls)) break
       }
     }
 
-    const badge = createBadge(price, weight, marketPrice);
-    
-    // Some e-commerce sites heavily constrain spans/divs inside prices.
-    // Insert just outside the price element to ensure it's visible.
-    const insertTarget = priceEl.closest('div') || priceEl.parentElement;
-    if (insertTarget) {
-      insertTarget.insertAdjacentElement('afterend', badge);
-      processedCount++;
-    }
-  }
+    if (!card || card === document.body || processed.has(card)) continue
+    if (card.querySelector('.' + BADGE_CLASS)) continue
+    processed.add(card)
 
-  if (processedCount > 0) {
-    console.log(`[Gold Price] Successfully rendered badges for ${processedCount} products.`);
-  } else {
-    console.log(`[Gold Price] Found ${unbadgedContainers.length} containers, but skipped all:`, skippedReasons);
+    const cardText = card.innerText || card.textContent || ''
+    if (!isGoldProduct(cardText)) continue
+
+    const priceEl = findPriceEl(card)
+    if (!priceEl) continue
+
+    const productPrice = parsePrice(priceEl.textContent || '')
+    if (!productPrice) continue
+
+    const weight = parseWeight(cardText)
+    if (!weight) continue
+
+    const badge = createBadge(productPrice, weight, price)
+    priceEl.after(badge)
   }
 }
 
-// Ensure the analysis runs safely
-let isRunning = false;
-let runTimeout: number | null = null;
+// ─── Entry point: run once after page settles ───────────────────
+let hasRun = false
 
-function triggerAnalysis() {
-  if (runTimeout) clearTimeout(runTimeout);
-  runTimeout = window.setTimeout(async () => {
-    if (isRunning) return;
-    isRunning = true;
-    try {
-      await runAnalysis();
-    } catch (e) {
-      console.error('[Gold Price] Error during analysis:', e);
-    } finally {
-      isRunning = false;
-    }
-  }, 1000); // Wait 1s for DOM to settle
+function run() {
+  if (hasRun) return
+  hasRun = true
+  // Give SPAs time to render
+  setTimeout(scan, 2000)
 }
 
-// Observe DOM for infinite scrolling/dynamic content
-const observer = new MutationObserver((mutations) => {
-  // Only trigger on added nodes to avoid infinite loops when we add our own badge
-  const hasAddedNodes = mutations.some(m => m.addedNodes.length > 0);
-  if (hasAddedNodes) {
-    triggerAnalysis();
+// For initial page load
+if (document.readyState === 'complete') {
+  run()
+} else {
+  window.addEventListener('load', run)
+}
+
+// For SPA navigation (Myntra, Ajio use client-side routing)
+let lastUrl = location.href
+new MutationObserver(() => {
+  if (location.href !== lastUrl) {
+    lastUrl = location.href
+    hasRun = false
+    run()
   }
-});
-
-// Initial runs
-window.addEventListener('load', () => setTimeout(triggerAnalysis, 1500));
-observer.observe(document.body, { childList: true, subtree: true });
-
-console.log('[Gold Price] Extension loaded and waiting for products...');
+}).observe(document.body, { childList: true, subtree: true })

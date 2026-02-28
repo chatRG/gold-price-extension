@@ -1,7 +1,6 @@
 {
   "name": "gold-price-extension",
-  "version": "1.2.5",
-  "module": "index.ts",
+  "version": "2.0.0",
   "type": "module",
   "private": true,
   "scripts": {
@@ -12,8 +11,6 @@
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.3.0",
-    "@types/archiver": "^7.0.0",
-    "@types/bun": "latest",
     "archiver": "^7.0.1",
     "vite": "^7.3.1"
   },

@@ -1,17 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Gold Price Comparator",
-  "version": "1.2.5",
-  "description": "Compare gold prices on e-commerce sites with allindiabullion.com rates",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage"
-  ],
+  "version": "2.0.0",
+  "description": "Compare gold jewelry prices on Myntra, Ajio, Flipkart with live market rates",
+  "permissions": ["storage"],
   "host_permissions": [
-    "https://*.myntra.com/*",
-    "https://*.ajio.com/*",
-    "https://*.flipkart.com/*",
     "https://allindiabullion.com/*"
   ],
   "background": {
@@ -20,11 +13,11 @@
   },
   "content_scripts": [
     {
-    "matches": [
-      "https://*.myntra.com/*",
-      "https://*.ajio.com/*",
-      "https://*.flipkart.com/*"
-    ],
+      "matches": [
+        "https://*.myntra.com/*",
+        "https://*.ajio.com/*",
+        "https://*.flipkart.com/*"
+      ],
       "js": ["content/content.ts"],
       "run_at": "document_idle"
     }
