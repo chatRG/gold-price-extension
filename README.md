@@ -74,6 +74,7 @@ bun run release
 
 - ✅ Myntra.com
 - ✅ Ajio.com
+- ✅ Flipkart.com
 
 ## Limitations
 

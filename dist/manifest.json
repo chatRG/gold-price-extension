@@ -11,6 +11,7 @@
   "host_permissions": [
     "https://*.myntra.com/*",
     "https://*.ajio.com/*",
+    "https://*.flipkart.com/*",
     "https://allindiabullion.com/*"
   ],
   "background": {
@@ -20,11 +21,12 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-B4ggO6-d.js"
+        "assets/content.ts-CavmS4HF.js"
       ],
       "matches": [
         "https://*.myntra.com/*",
-        "https://*.ajio.com/*"
+        "https://*.ajio.com/*",
+        "https://*.flipkart.com/*"
       ],
       "run_at": "document_idle"
     }
@@ -33,10 +35,11 @@
     {
       "matches": [
         "https://*.ajio.com/*",
+        "https://*.flipkart.com/*",
         "https://*.myntra.com/*"
       ],
       "resources": [
-        "assets/content.ts-B4ggO6-d.js"
+        "assets/content.ts-CavmS4HF.js"
       ],
       "use_dynamic_url": false
     }

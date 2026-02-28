@@ -11,6 +11,7 @@
   "host_permissions": [
     "https://*.myntra.com/*",
     "https://*.ajio.com/*",
+    "https://*.flipkart.com/*",
     "https://allindiabullion.com/*"
   ],
   "background": {
@@ -19,10 +20,11 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://*.myntra.com/*",
-        "https://*.ajio.com/*"
-      ],
+    "matches": [
+      "https://*.myntra.com/*",
+      "https://*.ajio.com/*",
+      "https://*.flipkart.com/*"
+    ],
       "js": ["content/content.ts"],
       "run_at": "document_idle"
     }

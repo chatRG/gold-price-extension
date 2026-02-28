@@ -56,6 +56,15 @@ function findProductCards(): Element[] {
       '[class*="card"]',
       'article',
     ]
+  } else if (hostname.includes('flipkart.com')) {
+    productSelectors = [
+      '[class*="product"]',
+      '[class*="Product"]',
+      '[class*="card"]',
+      '[class*="item"]',
+      'div[data-id]',
+      'article',
+    ]
   }
 
   const allElements: Element[] = []
@@ -75,6 +84,8 @@ function findPriceInCard(card: Element): Element | null {
     priceSelectors = ['.pdp-price', '[class*="price"]']
   } else if (hostname.includes('ajio.com')) {
     priceSelectors = ['.price', '.prod-price', '[class*="price"]', '.price-val']
+  } else if (hostname.includes('flipkart.com')) {
+    priceSelectors = ['[class*="price"]', '[class*="Price"]', '.Nx9bqj']
   }
 
   for (const selector of priceSelectors) {
