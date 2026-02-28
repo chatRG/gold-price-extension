@@ -8,9 +8,8 @@ A Chrome extension that helps you compare gold jewelry prices on e-commerce site
 - 🛍️ **Smart Detection**: Automatically detects gold products on Myntra and Ajio
 - 💰 **Price Comparison**: Calculates price per gram and compares with market rates
 - 😊 **Visual Recommendations**: 
-  - 🟢 **Buy**: Premium < 10% over market price
-  - 🟡 **Check**: Premium 10-30% over market price
-  - 🔴 **Skip**: Premium > 30% over market price
+  - 🟢 **Buy**: Product price ≤ market price
+  - 🔴 **Skip**: Product price > market price
 - ⚡ **30-minute Cache**: Efficiently caches gold prices to reduce API calls
 
 ## Installation
@@ -38,11 +37,13 @@ A Chrome extension that helps you compare gold jewelry prices on e-commerce site
    - Click "Load unpacked"
    - Select the `dist` folder in the project directory
 
-### Option 2: Install from Pre-built Files
+### Option 2: Install from GitHub Release
 
-1. Download the pre-built files from the [Releases](https://github.com/chatRG/gold-price-extension/releases) page
-2. Extract the archive
-3. Load the extension in Chrome as described in Option 1, Step 4
+1. Go to [Releases](https://github.com/chatRG/gold-price-extension/releases) page
+2. Download `gold-price-extension.zip`
+3. Open Chrome and navigate to `chrome://extensions/`
+4. Enable "Developer mode" (toggle in top right)
+5. Drag and drop the zip file into the extensions page
 
 ## Development
 
@@ -55,6 +56,12 @@ bun run dev
 
 # Build for production
 bun run build
+
+# Create zip package for distribution
+bun run package
+
+# Create GitHub release
+bun run release
 ```
 
 ## How It Works
@@ -75,15 +82,16 @@ bun run build
 
 ## Price Comparison Logic
 
-The extension calculates the premium percentage:
+The extension calculates the product price per gram:
 
 ```
-premium = ((productPricePerGram - marketPricePerGram) / marketPricePerGram) * 100
+productPricePerGram = productPrice / goldWeight
 ```
 
-- **Buy (🟢)**: Premium < 10% - Great deal below typical market premium
-- **Check (🟡)**: Premium 10-30% - Reasonable premium, consider other factors
-- **Skip (🔴)**: Premium > 30% - Overpriced, better deals likely available
+Then compares it with the market price:
+
+- **Buy (🟢)**: `productPricePerGram ≤ marketPricePerGram` - Good deal at or below market rate
+- **Skip (🔴)**: `productPricePerGram > marketPricePerGram` - Overpriced compared to market rate
 
 ## Supported Websites
 
@@ -103,13 +111,29 @@ premium = ((productPricePerGram - marketPricePerGram) / marketPricePerGram) * 10
 - **Extension Framework**: @crxjs/vite-plugin 2.3.0
 - **Package Manager**: Bun
 - **Language**: TypeScript 5
+- **Packaging**: Archiver 7
+
+## Creating Releases
+
+To create a new release with the extension package:
+
+```bash
+# Update version in package.json
+# Run the release script
+bun run release
+```
+
+This will:
+1. Build the extension
+2. Create a zip file in the `release/` directory
+3. Create a GitHub release with the zip file attached
+4. Tag the release with the version number
 
 ## Future Enhancements
 
 - Support for additional e-commerce sites
 - Detailed price breakdown (metal value, making charges, GST)
 - Historical price tracking and alerts
-- Customizable premium thresholds
 - Multiple karat options (18K, 22K)
 - Support for international gold rates
 

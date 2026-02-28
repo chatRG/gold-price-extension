@@ -6,6 +6,7 @@ const { execSync } = require('child_process')
 
 const releaseDir = path.resolve('release')
 const zipFile = path.join(releaseDir, 'gold-price-extension.zip')
+const notesFile = path.join(releaseDir, 'release-notes.md')
 
 console.log('Creating GitHub release...')
 
@@ -31,12 +32,16 @@ const releaseNotes = `## Gold Price Comparator v${pkg.version}
 - Myntra.com
 - Ajio.com`
 
+fs.writeFileSync(notesFile, releaseNotes)
+
 // Create release
 try {
-  execSync(`gh release create ${tagName} "${zipFile}" --title "v${pkg.version}" --notes "${releaseNotes}"`, { stdio: 'inherit' })
+  execSync(`gh release create ${tagName} "${zipFile}" --title "v${pkg.version}" --notes-file "${notesFile}"`, { stdio: 'inherit' })
+  fs.unlinkSync(notesFile)
   console.log(`\n✅ Release ${tagName} created successfully!`)
   console.log(`📦 Download: https://github.com/chatRG/gold-price-extension/releases/tag/${tagName}`)
 } catch (error) {
+  fs.unlinkSync(notesFile)
   console.error('❌ Error creating release:', error.message)
   console.log('\nYou may need to manually create the release:')
   console.log(`1. Push the tag: git push origin ${tagName}`)
