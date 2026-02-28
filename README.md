@@ -6,10 +6,14 @@ A Chrome extension that helps you compare gold jewelry prices on e-commerce site
 
 - 🔍 **Real-time Gold Prices**: Fetches live 24K gold prices from allindiabullion.com
 - 🛍️ **Smart Detection**: Automatically detects gold products on Myntra and Ajio
-- 💰 **Price Comparison**: Calculates price per gram and compares with market rates
+- 💰 **Detailed Price Comparison**: 
+  - Shows current market gold price per gram
+  - Shows product price per gram
+  - Shows difference (above/below market price)
 - 😊 **Visual Recommendations**: 
-  - 🟢 **Buy**: Product price ≤ market price
-  - 🔴 **Skip**: Product price > market price
+  - 🟢 **BUY**: Product price ≤ market price (green badge)
+  - 🔴 **SKIP**: Product price > market price (red badge)
+- 📋 **Works on Multiple Pages**: Product pages and search/listing pages
 - ⚡ **30-minute Cache**: Efficiently caches gold prices to reduce API calls
 
 ## Installation
@@ -82,16 +86,21 @@ bun run release
 
 ## Price Comparison Logic
 
-The extension calculates the product price per gram:
+The extension calculates product price per gram:
 
 ```
 productPricePerGram = productPrice / goldWeight
 ```
 
-Then compares it with the market price:
+Then compares it with market price and displays:
 
-- **Buy (🟢)**: `productPricePerGram ≤ marketPricePerGram` - Good deal at or below market rate
-- **Skip (🔴)**: `productPricePerGram > marketPricePerGram` - Overpriced compared to market rate
+- **BUY (🟢)**: `productPricePerGram ≤ marketPricePerGram` - Good deal at or below market rate
+- **SKIP (🔴)**: `productPricePerGram > marketPricePerGram` - Overpriced compared to market rate
+
+Each badge shows:
+- Market gold price per gram
+- Product price per gram  
+- Difference amount (₹X/g below/above market)
 
 ## Supported Websites
 
