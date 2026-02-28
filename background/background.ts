@@ -50,9 +50,20 @@ async function fetchGoldPrice(): Promise<GoldPrice> {
   }
 
   // 2. Fetch new price if cache is empty or expired
-  console.log('[Gold Price Background] Fetching fresh price from network...')
+    console.log('[Gold Price Background] Fetching fresh price from network...')
   try {
-    const response = await fetch('https://allindiabullion.com')
+    const response = await fetch('https://allindiabullion.com', {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
     const html = await response.text()
     const goldPrice = parseGoldPriceFromHTML(html)
 

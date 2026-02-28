@@ -75,8 +75,11 @@ function findProductContainers(): Element[] {
   } else if (host.includes('flipkart.com')) {
     selectors = [
       '[data-id]',          // Search list
-      '.aMaAEs',            // Product detail page
-      '.slAVV4',            // Search list alternative
+      '[class*="col-12-12"]', // Product detail page generic container
+      '[class*="product"]', // Alternative wrapper
+      '._1AtVbE',           // Old layout list
+      '._2kHMtA',           // Alternate layout list
+      '.slAVV4',            // Grid view item
       '.cPHDOP'             // Search list alternative
     ];
   }
@@ -103,7 +106,8 @@ function getPriceElement(container: Element): Element | null {
   } else if (host.includes('ajio.com')) {
     selectors = ['.price', '.prod-price', '.price-val'];
   } else if (host.includes('flipkart.com')) {
-    selectors = ['.Nx9bqj', '._30jeq3', '.CEmiEU', '.hl05eU'];
+    // Look for anything that has the price symbol and is a direct price container
+    selectors = ['.Nx9bqj', '._30jeq3', '.CEmiEU', '.hl05eU', '[class*="price"]', 'div > div > span:first-child'];
   }
 
   for (const sel of selectors) {
