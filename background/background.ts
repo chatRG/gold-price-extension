@@ -9,15 +9,23 @@ let cachedGoldPrice: GoldPrice | null = null
 const CACHE_DURATION = 30 * 60 * 1000
 
 function parseGoldPriceFromHTML(html: string): GoldPrice | null {
-  const retailGoldMatch = html.match(/RETAIL 999GOLD₹([\d,]+)/)
-  const karat24Match = html.match(/24K([\d,]+)per 10g/)
+  // Try meta description: "24K 10g: ₹1,64,672"
+  const metaMatch = html.match(/24K\s*10g:\s*₹?([\d,]+)/)
+  
+  // Try JSON-LD: "price":"164672" for "24K 999 — per 10g (Retail)"
+  const jsonLdMatch = html.match(/"name":\s*"24K 999.*?per 10g.*?"price":\s*"(\d+)"/)
+  
+  // Try header: "Today's 24K Gold Price: ₹1,64,672 per 10g"
+  const headerMatch = html.match(/24K Gold Price:.*?₹([\d,]+)\s*per\s*10g/i)
 
   let pricePer10g: number | null = null
 
-  if (retailGoldMatch) {
-    pricePer10g = parseInt(retailGoldMatch[1].replace(/,/g, ''), 10)
-  } else if (karat24Match) {
-    pricePer10g = parseInt(karat24Match[1].replace(/,/g, ''), 10)
+  if (metaMatch) {
+    pricePer10g = parseInt(metaMatch[1].replace(/,/g, ''), 10)
+  } else if (jsonLdMatch) {
+    pricePer10g = parseInt(jsonLdMatch[1], 10)
+  } else if (headerMatch) {
+    pricePer10g = parseInt(headerMatch[1].replace(/,/g, ''), 10)
   }
 
   if (!pricePer10g) {
