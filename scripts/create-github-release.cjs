@@ -13,24 +13,7 @@ console.log('Creating GitHub release...')
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'))
 const tagName = `v${pkg.version}`
 
-const releaseNotes = `## Gold Price Comparator v${pkg.version}
-
-### Installation
-1. Download gold-price-extension.zip
-2. Open chrome://extensions/ in Chrome
-3. Enable "Developer mode" (toggle in top right)
-4. Drag and drop the zip file into the extensions page
-
-### Features
-- Real-time gold prices from allindiabullion.com
-- Gold product detection on Myntra and Ajio
-- Price comparison with emoji recommendations
-- 🟢 Buy: Product price <= market price
-- 🔴 Skip: Product price > market price
-
-### Supported Sites
-- Myntra.com
-- Ajio.com`
+const releaseNotes = `## Gold Price Comparator v${pkg.version}`
 
 fs.writeFileSync(notesFile, releaseNotes)
 
