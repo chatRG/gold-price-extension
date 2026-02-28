@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Gold Price Comparator",
+  "version": "1.0.0",
+  "description": "Compare gold prices on e-commerce sites with allindiabullion.com rates",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.myntra.com/*",
+    "https://*.ajio.com/*",
+    "https://allindiabullion.com/*"
+  ],
+  "background": {
+    "service_worker": "background/background.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.myntra.com/*",
+        "https://*.ajio.com/*"
+      ],
+      "js": ["content/content.ts"],
+      "run_at": "document_idle"
+    }
+  ]
+}
