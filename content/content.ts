@@ -85,6 +85,12 @@ function findProductContainers(): Element[] {
   for (const sel of selectors) {
     document.querySelectorAll(sel).forEach(el => containers.push(el));
   }
+
+  // Fallback: If no specific containers found, treat the whole body as one container for PDPs
+  if (containers.length === 0) {
+    containers.push(document.body);
+  }
+
   return [...new Set(containers)];
 }
 
@@ -93,11 +99,11 @@ function getPriceElement(container: Element): Element | null {
   let selectors: string[] = [];
 
   if (host.includes('myntra.com')) {
-    selectors = ['.product-discountedPrice', '.pdp-price', 'strong'];
+    selectors = ['.product-discountedPrice', '.pdp-price', 'strong', '.product-price'];
   } else if (host.includes('ajio.com')) {
-    selectors = ['.price', '.prod-price'];
+    selectors = ['.price', '.prod-price', '.price-val'];
   } else if (host.includes('flipkart.com')) {
-    selectors = ['.Nx9bqj', '._30jeq3', '.CEmiEU'];
+    selectors = ['.Nx9bqj', '._30jeq3', '.CEmiEU', '.hl05eU'];
   }
 
   for (const sel of selectors) {
@@ -105,10 +111,10 @@ function getPriceElement(container: Element): Element | null {
     if (el) return el;
   }
 
-  // Fallback: search for elements containing ₹
+  // Fallback: search for elements containing ₹ or Rs
   const elements = Array.from(container.querySelectorAll('*'));
   for (const el of elements) {
-    if (el.children.length === 0 && el.textContent?.includes('₹')) {
+    if (el.children.length === 0 && (el.textContent?.includes('₹') || el.textContent?.includes('Rs'))) {
       return el;
     }
   }
@@ -163,31 +169,49 @@ function createBadge(productPrice: number, goldWeight: number, marketPrice: numb
 
 async function runAnalysis() {
   const containers = findProductContainers();
-  if (containers.length === 0) return;
+  if (containers.length === 0) {
+    console.log('[Gold Price] No product containers found on this page.');
+    return;
+  }
 
   const unbadgedContainers = containers.filter(c => !c.querySelector('.gold-price-extension-badge'));
   if (unbadgedContainers.length === 0) return;
 
   let processedCount = 0;
   let marketPrice: number | null = null;
+  let skippedReasons: Record<string, number> = {
+    notGold: 0,
+    noPrice: 0,
+    noWeight: 0
+  };
 
   for (const container of unbadgedContainers) {
     const textContext = container.textContent?.toLowerCase() || '';
     
     // Only process if it explicitly mentions gold
     if (!textContext.includes('gold') && !textContext.includes('22k') && !textContext.includes('18k') && !textContext.includes('24k')) {
+      skippedReasons.notGold++;
       continue;
     }
 
     const priceEl = getPriceElement(container);
-    if (!priceEl) continue;
+    if (!priceEl) {
+      skippedReasons.noPrice++;
+      continue;
+    }
 
     const priceText = priceEl.textContent || '';
     const price = extractPriceFromText(priceText);
-    if (!price) continue;
+    if (!price) {
+      skippedReasons.noPrice++;
+      continue;
+    }
 
     const weight = extractWeightFromText(textContext);
-    if (!weight) continue;
+    if (!weight) {
+      skippedReasons.noWeight++;
+      continue;
+    }
 
     // We found a valid gold product! Only fetch market price NOW if we haven't already.
     if (!marketPrice) {
@@ -200,15 +224,19 @@ async function runAnalysis() {
 
     const badge = createBadge(price, weight, marketPrice);
     
-    // Insert badge right after the price element to ensure visibility
-    if (priceEl.parentElement) {
-      priceEl.insertAdjacentElement('afterend', badge);
+    // Some e-commerce sites heavily constrain spans/divs inside prices.
+    // Insert just outside the price element to ensure it's visible.
+    const insertTarget = priceEl.closest('div') || priceEl.parentElement;
+    if (insertTarget) {
+      insertTarget.insertAdjacentElement('afterend', badge);
       processedCount++;
     }
   }
 
   if (processedCount > 0) {
     console.log(`[Gold Price] Successfully rendered badges for ${processedCount} products.`);
+  } else {
+    console.log(`[Gold Price] Found ${unbadgedContainers.length} containers, but skipped all:`, skippedReasons);
   }
 }
 
