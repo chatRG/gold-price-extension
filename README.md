@@ -2,20 +2,6 @@
 
 A Chrome extension that helps you compare gold jewelry prices on e-commerce sites (Myntra, Ajio) with real-time market rates from allindiabullion.com.
 
-## Features
-
-- 🔍 **Real-time Gold Prices**: Fetches live 24K gold prices from allindiabullion.com
-- 🛍️ **Smart Detection**: Automatically detects gold products on Myntra and Ajio
-- 💰 **Detailed Price Comparison**: 
-  - Shows current market gold price per gram
-  - Shows product price per gram
-  - Shows difference (above/below market price)
-- 😊 **Visual Recommendations**: 
-  - 🟢 **BUY**: Product price ≤ market price (green badge)
-  - 🔴 **SKIP**: Product price > market price (red badge)
-- 📋 **Works on Multiple Pages**: Product pages and search/listing pages
-- ⚡ **30-minute Cache**: Efficiently caches gold prices to reduce API calls
-
 ## Installation
 
 ### Option 1: Load Unpacked Extension (Development)
@@ -39,7 +25,7 @@ A Chrome extension that helps you compare gold jewelry prices on e-commerce site
 4. Open Chrome and navigate to `chrome://extensions/`
    - Enable "Developer mode" (toggle in top right)
    - Click "Load unpacked"
-   - Select the `dist` folder in the project directory
+   - Select `dist` folder in the project directory
 
 ### Option 2: Install from GitHub Release
 
@@ -72,35 +58,17 @@ bun run release
 
 1. **Background Service Worker** (`background/background.ts`):
    - Fetches gold prices from allindiabullion.com
-   - Parses the HTML to extract current 24K gold rate
+   - Parses HTML to extract current 24K gold rate
    - Caches prices for 30 minutes to optimize performance
    - Responds to content script requests for gold prices
 
 2. **Content Script** (`content/content.ts`):
-   - Runs on Myntra and Ajio product pages
-   - Detects if a product contains gold using keyword matching
+   - Runs on Myntra and Ajio product pages and search listings
+   - Detects gold products using keyword matching
    - Extracts product price and weight information
    - Sends request to background script for current gold prices
    - Compares product price per gram with market rates
-   - Displays an emoji badge in the top-right corner with recommendation
-
-## Price Comparison Logic
-
-The extension calculates product price per gram:
-
-```
-productPricePerGram = productPrice / goldWeight
-```
-
-Then compares it with market price and displays:
-
-- **BUY (🟢)**: `productPricePerGram ≤ marketPricePerGram` - Good deal at or below market rate
-- **SKIP (🔴)**: `productPricePerGram > marketPricePerGram` - Overpriced compared to market rate
-
-Each badge shows:
-- Market gold price per gram
-- Product price per gram  
-- Difference amount (₹X/g below/above market)
+   - Displays price badges with BUY/SKIP recommendations
 
 ## Supported Websites
 
@@ -113,38 +81,6 @@ Each badge shows:
 - Product price selectors are optimized for current site layouts and may break if sites change
 - Making charges, GST, and brand premiums are not separately calculated
 - Only 24K gold rates are used for comparison (jewelry is typically 22K or 18K)
-
-## Tech Stack
-
-- **Build Tool**: Vite 7
-- **Extension Framework**: @crxjs/vite-plugin 2.3.0
-- **Package Manager**: Bun
-- **Language**: TypeScript 5
-- **Packaging**: Archiver 7
-
-## Creating Releases
-
-To create a new release with the extension package:
-
-```bash
-# Update version in package.json
-# Run the release script
-bun run release
-```
-
-This will:
-1. Build the extension
-2. Create a zip file in the `release/` directory
-3. Create a GitHub release with the zip file attached
-4. Tag the release with the version number
-
-## Future Enhancements
-
-- Support for additional e-commerce sites
-- Detailed price breakdown (metal value, making charges, GST)
-- Historical price tracking and alerts
-- Multiple karat options (18K, 22K)
-- Support for international gold rates
 
 ## License
 
