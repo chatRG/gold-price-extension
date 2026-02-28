@@ -76,7 +76,6 @@ function showRecommendationEmoji(recommendation: string): void {
   const emojiMap: Record<string, string> = {
     buy: '🟢',
     skip: '🔴',
-    check: '🟡',
   }
 
   const emoji = emojiMap[recommendation] || '🟡'
@@ -106,18 +105,15 @@ function showRecommendationEmoji(recommendation: string): void {
 
 function calculateRecommendation(productPrice: number, productWeight: number, goldPricePerGram: number): string {
   if (!productWeight || !goldPricePerGram) {
-    return 'check'
+    return 'skip'
   }
 
   const productPricePerGram = productPrice / productWeight
-  const premiumPercentage = ((productPricePerGram - goldPricePerGram) / goldPricePerGram) * 100
 
-  if (premiumPercentage < 10) {
-    return 'buy'
-  } else if (premiumPercentage > 30) {
+  if (productPricePerGram > goldPricePerGram) {
     return 'skip'
   } else {
-    return 'check'
+    return 'buy'
   }
 }
 

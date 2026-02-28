@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-GGc7Zxc_.js"
+        "assets/content.ts-XIHW4cTk.js"
       ],
       "matches": [
         "https://*.myntra.com/*",
@@ -36,7 +36,7 @@
         "https://*.myntra.com/*"
       ],
       "resources": [
-        "assets/content.ts-GGc7Zxc_.js"
+        "assets/content.ts-XIHW4cTk.js"
       ],
       "use_dynamic_url": false
     }
