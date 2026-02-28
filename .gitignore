@@ -5,10 +5,6 @@ node_modules
 out
 *.tgz
 
-# release artifacts
-*.crx
-*.zip
-
 # code coverage
 coverage
 *.lcov
