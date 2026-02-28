@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "package": "node scripts/package.cjs"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.3.0",

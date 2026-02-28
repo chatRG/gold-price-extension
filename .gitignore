@@ -3,7 +3,12 @@ node_modules
 
 # output
 out
+dist
 *.tgz
+
+# release artifacts
+*.crx
+*.zip
 
 # code coverage
 coverage
