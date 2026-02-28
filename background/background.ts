@@ -5,7 +5,6 @@ interface GoldPrice {
   timestamp: number
 }
 
-let cachedGoldPrice: GoldPrice | null = null
 const CACHE_DURATION = 30 * 60 * 1000
 
 function parseGoldPriceFromHTML(html: string): GoldPrice | null {
@@ -41,23 +40,38 @@ function parseGoldPriceFromHTML(html: string): GoldPrice | null {
 }
 
 async function fetchGoldPrice(): Promise<GoldPrice> {
-  if (cachedGoldPrice && Date.now() - cachedGoldPrice.timestamp < CACHE_DURATION) {
-    return cachedGoldPrice
+  // 1. Check Chrome Storage (persists across service worker restarts)
+  const result = await chrome.storage.local.get(['cachedGoldPrice'])
+  const cached = result.cachedGoldPrice as GoldPrice | undefined
+
+  if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
+    console.log('[Gold Price Background] Using valid cached price from storage:', cached.pricePerGram)
+    return cached
   }
 
+  // 2. Fetch new price if cache is empty or expired
+  console.log('[Gold Price Background] Fetching fresh price from network...')
   try {
     const response = await fetch('https://allindiabullion.com')
     const html = await response.text()
     const goldPrice = parseGoldPriceFromHTML(html)
 
     if (goldPrice) {
-      cachedGoldPrice = goldPrice
+      // 3. Save to storage
+      await chrome.storage.local.set({ cachedGoldPrice: goldPrice })
+      console.log('[Gold Price Background] Successfully fetched and cached new price:', goldPrice.pricePerGram)
       return goldPrice
     }
 
-    throw new Error('Failed to parse gold price')
+    throw new Error('Failed to parse gold price from HTML')
   } catch (error) {
-    console.error('Error fetching gold price:', error)
+    console.error('[Gold Price Background] Error fetching gold price:', error)
+    
+    // Fallback: return old cache if network fails, even if expired
+    if (cached) {
+      console.log('[Gold Price Background] Network failed, returning expired cache as fallback.')
+      return cached
+    }
     throw error
   }
 }
@@ -67,7 +81,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     fetchGoldPrice()
       .then(price => sendResponse({ success: true, data: price }))
       .catch(error => sendResponse({ success: false, error: error.message }))
-    return true
+    return true // Keep channel open for async response
   }
 })
 

@@ -6,13 +6,13 @@
     "isEntry": true
   },
   "background/background.ts": {
-    "file": "assets/background.ts-BKNaJreO.js",
+    "file": "assets/background.ts-BTKJhYoj.js",
     "name": "background.ts",
     "src": "background/background.ts",
     "isEntry": true
   },
   "content/content.ts": {
-    "file": "assets/content.ts-oUJ7nYtl.js",
+    "file": "assets/content.ts-bov8N9CL.js",
     "name": "content.ts",
     "src": "content/content.ts",
     "isEntry": true

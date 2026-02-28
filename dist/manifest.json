@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.ts-oUJ7nYtl.js"
+        "assets/content.ts-bov8N9CL.js"
       ],
       "matches": [
         "https://*.myntra.com/*",
@@ -39,7 +39,7 @@
         "https://*.myntra.com/*"
       ],
       "resources": [
-        "assets/content.ts-oUJ7nYtl.js"
+        "assets/content.ts-bov8N9CL.js"
       ],
       "use_dynamic_url": false
     }
