@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gold Price Comparator",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Compare gold prices on e-commerce sites with allindiabullion.com rates",
   "permissions": [
     "activeTab",
