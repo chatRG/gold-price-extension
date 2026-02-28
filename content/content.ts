@@ -146,38 +146,54 @@ function createPriceBadge(
   return badge
 }
 
-function removeExistingBadges(): void {
-  document.querySelectorAll('.gold-price-badge').forEach(badge => badge.remove())
-}
+let cachedMarketPrice: number | null = null;
+let lastFetchTime = 0;
+const FETCH_COOLDOWN = 60 * 1000; // Only fetch once per minute max
 
-async function analyzeProducts(): Promise<void> {
-  removeExistingBadges()
-
-  const goldProducts = findGoldProducts()
-  console.log('[Gold Price] Found gold products:', goldProducts.length)
-  
-  if (goldProducts.length === 0) {
-    return
+async function getMarketPrice(): Promise<number | null> {
+  const now = Date.now();
+  if (cachedMarketPrice && (now - lastFetchTime < FETCH_COOLDOWN)) {
+    return cachedMarketPrice;
   }
-
-  let goldPricePerGram: number | null = null
 
   try {
     const response = await chrome.runtime.sendMessage({ action: 'getGoldPrice' })
     if (response.success && response.data) {
-      goldPricePerGram = response.data.pricePerGram
-      console.log('[Gold Price] Market price:', goldPricePerGram)
+      cachedMarketPrice = response.data.pricePerGram
+      lastFetchTime = now;
+      console.log('[Gold Price] Fetched new market price:', cachedMarketPrice)
+      return cachedMarketPrice
     }
   } catch (error) {
     console.error('[Gold Price] Error getting price:', error)
   }
+  
+  return cachedMarketPrice;
+}
+
+async function analyzeProducts(): Promise<void> {
+  const goldProducts = findGoldProducts()
+  
+  if (goldProducts.length === 0) {
+    return
+  }
+  
+  // Only process if we found new products without badges
+  const unbadgedProducts = goldProducts.filter(p => !p.querySelector('.gold-price-badge'));
+  if (unbadgedProducts.length === 0) {
+    return; // All found products already have badges
+  }
+
+  console.log(`[Gold Price] Found ${unbadgedProducts.length} new gold products to process (total: ${goldProducts.length})`)
+
+  const goldPricePerGram = await getMarketPrice();
 
   if (!goldPricePerGram) {
     console.log('[Gold Price] Could not get market price')
     return
   }
 
-  for (const product of goldProducts) {
+  for (const product of unbadgedProducts) {
     const priceElement = findPriceInProduct(product)
     if (!priceElement) continue
 
@@ -187,16 +203,16 @@ async function analyzeProducts(): Promise<void> {
     const goldWeight = findWeightInProduct(product)
     if (!goldWeight) continue
 
-    console.log('[Gold Price] Product:', { price: productPrice, weight: goldWeight, perGram: productPrice / goldWeight })
-
     const badge = createPriceBadge(productPrice, goldWeight, goldPricePerGram)
 
-    const existingBadge = product.querySelector('.gold-price-badge')
-    if (existingBadge) {
-      existingBadge.replaceWith(badge)
-    } else {
-      priceElement.parentElement?.insertBefore(badge, priceElement.nextSibling)
-    }
+    // Using z-index and absolute positioning if needed, but normally just inserting it is fine
+    // Making sure it displays correctly by wrapping it in a block element
+    badge.style.display = 'block';
+    badge.style.width = '100%';
+    badge.style.marginTop = '8px';
+    badge.style.marginBottom = '8px';
+
+    priceElement.parentElement?.insertBefore(badge, priceElement.nextSibling)
   }
 }
 
@@ -208,18 +224,20 @@ function checkAndAnalyze(): void {
     setTimeout(async () => {
       await analyzeProducts()
       isAnalyzing = false
-    }, 2000)
+    }, 1500)
   }
 }
 
-window.addEventListener('load', checkAndAnalyze)
-window.addEventListener('hashchange', checkAndAnalyze)
-window.addEventListener('popstate', checkAndAnalyze)
-
+// More conservative observer
+let observerTimeout: number | null = null;
 const observer = new MutationObserver(() => {
-  checkAndAnalyze()
+  if (observerTimeout) clearTimeout(observerTimeout);
+  observerTimeout = window.setTimeout(() => {
+    checkAndAnalyze();
+  }, 1000);
 })
 
-observer.observe(document.body, { childList: true, subtree: true })
+// Only observe added nodes, not character data
+observer.observe(document.body, { childList: true, subtree: true, attributes: false, characterData: false })
 
 console.log('Gold Price Extension content script loaded')
